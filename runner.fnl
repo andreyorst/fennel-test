@@ -57,7 +57,7 @@
 
 (fn run-tests []
   (each [_ [ns tests] (ipairs tests)]
-    (io.stdout:write "running tests for: " ns "\n")
+    ;; (io.stdout:write "running tests for: " ns "\n")
     (io.stdout:write "(")
     (each [_ [test-name test-fn] (ipairs tests)]
       (match (with-no-stdout (pcall test-fn))

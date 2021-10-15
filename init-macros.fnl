@@ -119,7 +119,7 @@ the same as `assert-is'."
                  res#)))))
 
 (fn deftest
-  [_name ...]
+  [name ...]
   "Simple way of grouping tests with `name'.
 
 # Example
@@ -129,7 +129,12 @@ the same as `assert-is'."
   )
 ```
 "
-  `(do ,...))
+  `(let [(_# test-ns#) ...]
+     (fn ,name []
+       ,...)
+     (if (= :table (type test-ns#))
+         (table.insert test-ns# [,(tostring name) ,name])
+         (,name))))
 
 (fn testing
   [description ...]
@@ -142,8 +147,9 @@ the same as `assert-is'."
   )
 ```
 "
-  `(do (io.stdout:write "testing: " ,description "\n")
-       ,...))
+  `(do
+     (io.stdout:write "testing: " ,description "\n")
+     ,...))
 
 {: deftest
  : testing

@@ -34,11 +34,12 @@
 (macro with-no-stdout [expr]
   "Suppress output to stderr."
   `(let [stdout-mt# (. (getmetatable io.stdout) :__index)
-         write# stdout-mt#.write]
+         write# stdout-mt#.write
+         pack# #(doto [$...] (tset :n (select "#" $...)))]
      (tset stdout-mt# :write (fn [fd# ...]
                                (when (not= fd# io.stdout)
                                  (write# fd# ...))))
-     (let [res# (table.pack ,expr)]
+     (let [res# (pack# ,expr)]
        (tset stdout-mt# :write write#)
        (table.unpack res# 1 res#.n))))
 

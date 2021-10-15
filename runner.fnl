@@ -24,12 +24,24 @@
                    (string.gsub "%.fnl$" ""))]
     module))
 
+(fn deepcopy [x]
+  (fn deepcopy* [x seen]
+    (match (type x)
+      :table (match (. seen x)
+               true x
+               _ (do (tset seen x true)
+                     (collect [k v (pairs x)]
+                       (values (deepcopy* k seen)
+                               (deepcopy* v seen)))))
+      _ x))
+  (deepcopy* x {}))
+
 (fn load-tests []
   (each [_ file (ipairs arg)]
     (let [module-name (module-from-file file)
           module-tests []]
       (table.insert tests [module-name module-tests])
-      (fennel.dofile file {:env _G} module-name module-tests))))
+      (fennel.dofile file {:env (deepcopy _G)} module-name module-tests))))
 
 (macro with-no-stdout [expr]
   "Suppress output to stderr."

@@ -48,7 +48,7 @@ Deep compare values:
                     ,formatted
                     (tostring# left#)
                     (tostring# right#)
-                    ,(if msg (.. " Info: " msg) ""))))
+                    ,(if msg `(.. " Info: " (tostring# msg)) ""))))
        nil)))
 
 (fn assert-ne
@@ -75,7 +75,7 @@ Deep compare values:
                     ,formatted
                     (tostring# left#)
                     (tostring# right#)
-                    ,(if msg (.. " Info: " msg) ""))))
+                    ,(if msg `(.. " Info: " (tostring# msg)) ""))))
        nil)))
 
 (fn assert-is
@@ -87,13 +87,14 @@ Deep compare values:
 (assert-is (= 1 2 3))
 ;; => runtime error: assertion failed for (= 1 2 3)
 ```"
-  `(let [(suc# res#) (pcall (fn [] ,expr))]
+  `(let [{:tostring tostring#} (require ,utils)
+         (suc# res#) (pcall (fn [] ,expr))]
      (if suc#
          (do (assert res# (string.format
                            "assertion failed for expression:\n%s\nResult: %s\n%s"
                            ,(view expr {:one-line? true})
                            (tostring res#)
-                           ,(if msg (.. "  Info: " msg) "")))
+                           ,(if msg `(.. "  Info: " (tostring# msg)) "")))
              nil)
          (error (string.format
                  "in expression: %s: %s\n"
@@ -104,14 +105,15 @@ Deep compare values:
   [expr msg]
   "Assert `expr' for not truth. Generates more verbose message.  Works
 the same as `assert-is'."
-  `(let [(suc# res#) (pcall (fn [] (not ,expr)))]
+  `(let [{:tostring tostring#} (require ,utils)
+         (suc# res#) (pcall (fn [] (not ,expr)))]
      (if suc#
          (do (assert res#
                      (string.format
                       "assertion failed for expression:\n(not %s)\nResult: %s\n%s"
                       ,(view expr {:one-line? true})
                       (tostring res#)
-                      ,(if msg (.. "  Info: " msg) "")))
+                      ,(if msg `(.. "  Info: " (tostring# msg)) "")))
              nil)
          (error (string.format
                  "in expression: (not %s): %s\n"

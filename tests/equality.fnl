@@ -1,7 +1,7 @@
 (require-macros :init-macros)
 (local {: eq} (require "utils"))
 
-(deftest "equality"
+(deftest equality
   (testing "primitive equality"
     (assert-is (eq 1 1))
     (assert-is (eq nil nil))

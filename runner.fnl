@@ -50,7 +50,8 @@
       (match (with-no-stdout (pcall test-fn))
         (false msg) (do (io.stdout:write "F")
                         (table.insert errors [ns test-name msg]))
-        _ (io.stdout:write ".")))
+        _ (io.stdout:write "."))
+      (io.stdout:flush))
     (io.stdout:write ")"))
   (io.stdout:write "\n")
   (each [_ [ns test-name message] (ipairs errors)]

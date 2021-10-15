@@ -25,16 +25,19 @@
     module))
 
 (fn deepcopy [x]
-  (fn deepcopy* [x seen]
-    (match (type x)
-      :table (match (. seen x)
-               true x
-               _ (do (tset seen x true)
-                     (collect [k v (pairs x)]
-                       (values (deepcopy* k seen)
-                               (deepcopy* v seen)))))
-      _ x))
-  (deepcopy* x {}))
+  ((fn deepcopy [x seen]
+     (match  (type x)
+       :table (match (. seen x)
+                x* x*
+                _ (let [res {}]
+                    (tset seen x res)
+                    (each [k v (pairs x)]
+                      (tset res
+                            (deepcopy k seen)
+                            (deepcopy v seen)))
+                    res))
+       _ x))
+   x {}))
 
 (fn load-tests []
   (each [_ file (ipairs arg)]

@@ -43,13 +43,14 @@
       (table.insert tests [module-name module-tests])
       (fennel.dofile file {:env (deepcopy _G)} module-name module-tests))))
 
-(macro with-no-stdout [expr]
+(macro with-no-out [expr]
   "Suppress output to stderr."
   `(let [stdout-mt# (. (getmetatable io.stdout) :__index)
          write# stdout-mt#.write
          pack# #(doto [$...] (tset :n (select "#" $...)))]
      (tset stdout-mt# :write (fn [fd# ...]
-                               (when (not= fd# io.stdout)
+                               (when (and (not= fd# io.stdout)
+                                          (not= fd# io.stderr))
                                  (write# fd# ...))))
      (let [res# (pack# ,expr)]
        (tset stdout-mt# :write write#)
@@ -60,7 +61,7 @@
     ;; (io.stdout:write "running tests for: " ns "\n")
     (io.stdout:write "(")
     (each [_ [test-name test-fn] (ipairs tests)]
-      (match (with-no-stdout (pcall test-fn))
+      (match (with-no-out (pcall test-fn))
         (false msg) (do (io.stdout:write "F")
                         (table.insert errors [ns test-name msg]))
         _ (io.stdout:write "."))

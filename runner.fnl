@@ -95,3 +95,6 @@
 (load-tests)
 (shuffle-tests)
 (run-tests)
+
+(when (> (length errors) 0)
+  (os.exit 1))

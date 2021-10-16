@@ -35,7 +35,7 @@
                       (tset res
                             (deepcopy k seen)
                             (deepcopy v seen)))
-                    res))
+                    (setmetatable res (getmetatable x))))
        _ x))
    x {}))
 

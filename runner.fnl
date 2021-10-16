@@ -1,5 +1,5 @@
 (local fennel (require :fennel))
-(local config {:seed (or (os.getenv "FENNEL_TEST_SEED") (os.time))})
+(local config {:seed (tonumber (or (os.getenv "FENNEL_TEST_SEED") (os.time)))})
 (local tests [])
 (local errors [])
 

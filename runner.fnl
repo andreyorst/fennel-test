@@ -75,13 +75,17 @@
     (io.stderr:write "Error in " ns " in test " test-name ":\n" message "\n")))
 
 
+(fn shuffle-table [t]
+  (for [i (length t) 2 -1]
+    (let [j (math.random i)
+          ti (. t i)]
+      (tset t i (. t j))
+      (tset t j ti))))
+
 (fn shuffle-tests []
   (each [_ [_ test-ns] (ipairs tests)]
-    (for [i (length test-ns) 2 -1]
-      (let [j (math.random i)
-            test-ns-i (. test-ns i)]
-        (tset test-ns i (. test-ns j))
-        (tset test-ns j test-ns-i)))))
+    (shuffle-table test-ns))
+  (shuffle-table tests))
 
 (fn print-stats []
   (io.stdout:write "Test run at " (os.date) ", seed: " config.seed "\n"))

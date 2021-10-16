@@ -1,5 +1,7 @@
 (local fennel (require :fennel))
-(local config {:seed (tonumber (or (os.getenv "FENNEL_TEST_SEED") (os.time)))})
+(local config {:seed (tonumber (or (os.getenv "FENNEL_TEST_SEED") (os.time)))
+               :runner :dots
+               :shuffle? true})
 (local tests [])
 (local errors [])
 
@@ -40,11 +42,17 @@
    x {}))
 
 (fn load-tests []
-  (each [_ file (ipairs arg)]
-    (let [module-name (module-from-file file)
-          module-tests []]
-      (table.insert tests [module-name module-tests])
-      (fennel.dofile file {:env (deepcopy _G)} module-name module-tests))))
+  (let [env _ENV
+        g _G]
+    (each [_ file (ipairs arg)]
+      (let [module-name (module-from-file file)
+            module-tests []]
+        (set-forcibly! _ENV (deepcopy env))
+        (set-forcibly! _G (deepcopy _G))
+        (table.insert tests [module-name module-tests])
+        (fennel.dofile file {:env _G} module-name module-tests)))
+    (set-forcibly! _ENV env)
+    (set-forcibly! _G g)))
 
 (macro with-no-out [expr]
   "Suppress output to stderr."
@@ -59,9 +67,8 @@
        (tset stdout-mt# :write write#)
        (table.unpack res# 1 res#.n))))
 
-(fn run-tests []
+(fn dots []
   (each [_ [ns tests] (ipairs tests)]
-    ;; (io.stdout:write "running tests for: " ns "\n")
     (io.stdout:write "(")
     (each [_ [test-name test-fn] (ipairs tests)]
       (match (with-no-out (pcall test-fn))
@@ -70,7 +77,31 @@
         _ (io.stdout:write "."))
       (io.stdout:flush))
     (io.stdout:write ")"))
-  (io.stdout:write "\n")
+  (io.stdout:write "\n"))
+
+(fn namespaces []
+  (each [_ [ns tests] (ipairs tests)]
+    (io.stdout:write ns ": ")
+    (var ok? true)
+    (if (> (length tests) 0)
+        (do (each [_ [test-name test-fn] (ipairs tests)]
+              (match (with-no-out (pcall test-fn))
+                (false msg) (do (set ok? false)
+                                (table.insert errors [ns test-name msg]))))
+            (if ok?
+                (io.stdout:write "PASS\n")
+                (io.stdout:write "FAIL\n")))
+        (io.stderr:write ns ": no tests\n"))))
+
+(fn run-tests []
+  (match config.runner
+    :dots (dots)
+    :namespaces (namespaces)
+    (where runner (= :function (type runner))) (runner tests errors)
+    _ (do (io.stderr "Warning: unknown runner '" (tostring _) "' using default: 'dots'\n")
+          (dots))))
+
+(fn print-errors []
   (each [_ [ns test-name message] (ipairs errors)]
     (io.stderr:write "Error in " ns " in test " test-name ":\n" message "\n")))
 
@@ -93,8 +124,10 @@
 (setup-runner)
 (print-stats)
 (load-tests)
-(shuffle-tests)
+(when config.shuffle?
+  (shuffle-tests))
 (run-tests)
+(print-errors)
 
 (when (> (length errors) 0)
   (os.exit 1))

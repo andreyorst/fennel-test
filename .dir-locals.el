@@ -9,8 +9,10 @@
                                              "assert-eq"
                                              "assert-ne"
                                              "assert-is"
-                                             "assert-not"))
+                                             "assert-not"
+                                             "use-fixtures"))
                                   word-end)
                              1 'font-lock-keyword-face))))
                  (eval . (put 'deftest 'fennel-indent-function 'defun))
-                 (eval . (put 'testing 'fennel-indent-function 'defun)))))
+                 (eval . (put 'testing 'fennel-indent-function 'defun))
+                 (eval . (put 'use-fixtures 'fennel-indent-function 1)))))

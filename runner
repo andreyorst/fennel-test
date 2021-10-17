@@ -46,7 +46,7 @@
            (= :function config.reporter.ns-report)
            (= :function config.reporter.test-start)
            (= :function config.reporter.test-report)
-           (= :function config.reporter.test-start))
+           (= :function config.reporter.stats-report))
       nil
       (not= nil config.reporter)
       (do (io.stderr:write

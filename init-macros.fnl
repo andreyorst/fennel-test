@@ -48,7 +48,7 @@ Deep compare values:
                     ,formatted
                     (tostring# left#)
                     (tostring# right#)
-                    ,(if msg `(.. " Info: " (tostring# msg)) ""))))
+                    ,(if msg `(.. " Info: " (tostring# ,msg)) ""))))
        nil)))
 
 (fn assert-ne
@@ -75,7 +75,7 @@ Deep compare values:
                     ,formatted
                     (tostring# left#)
                     (tostring# right#)
-                    ,(if msg `(.. " Info: " (tostring# msg)) ""))))
+                    ,(if msg `(.. " Info: " (tostring# ,msg)) ""))))
        nil)))
 
 (fn assert-is
@@ -94,7 +94,7 @@ Deep compare values:
                            "assertion failed for expression:\n%s\nResult: %s\n%s"
                            ,(view expr {:one-line? true})
                            (tostring res#)
-                           ,(if msg `(.. "  Info: " (tostring# msg)) "")))
+                           ,(if msg `(.. "  Info: " (tostring# ,msg)) "")))
              nil)
          (error (string.format
                  "in expression: %s: %s\n"
@@ -113,7 +113,7 @@ the same as `assert-is'."
                       "assertion failed for expression:\n(not %s)\nResult: %s\n%s"
                       ,(view expr {:one-line? true})
                       (tostring res#)
-                      ,(if msg `(.. "  Info: " (tostring# msg)) "")))
+                      ,(if msg `(.. "  Info: " (tostring# ,msg)) "")))
              nil)
          (error (string.format
                  "in expression: (not %s): %s\n"

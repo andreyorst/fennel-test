@@ -19,7 +19,7 @@
 
 (local namespaces
   {:ns-start (fn [ns] (io.stdout:write ns ": "))
-   :ns-report (fn [ns ok?] (io.stdout:write (if ok? "PASS" "FAIL")))
+   :ns-report (fn [ns ok?] (io.stdout:write (if ok? "PASS" "FAIL") "\n"))
    :test-start (fn [] nil)
    :test-report (fn [] nil)
    :stats-report (fn [] nil)})

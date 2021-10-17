@@ -5,7 +5,7 @@
 (local config {:seed (tonumber (or (os.getenv "FENNEL_TEST_SEED") (os.time)))
                :runner :dots
                :shuffle? true})
-(local tests [])
+(local tests {:once {} :each {}})
 (local errors [])
 
 (fn file-exists? [file]
@@ -54,6 +54,22 @@
         (table.insert tests [module-name module-tests])
         (fennel.dofile file {:env _G} module-name module-tests)))
     (set-forcibly! _G g)))
+
+(fn default-fixture [f]
+  (f))
+
+(fn compose-fixtures [f1 f2]
+  (fn [g] (f1 (fn [] (f2 g)))))
+
+(fn join-fixtures [fixtures]
+  (accumulate [f default-fixture _ fixture (ipairs fixtures)]
+    (compose-fixtures f fixture)))
+
+(local fixtures {:once {} :each {}})
+
+(fn setup-fixtures [once-each]
+  (each [ns fs (pairs (. tests once-each))]
+    (tset fixtures once-each ns (join-fixtures fs))))
 
 (macro with-no-output [expr]
   "Suppress output to stderr."
@@ -124,6 +140,8 @@
 (setup-runner)
 (print-stats)
 (load-tests)
+(setup-fixtures :once)
+(setup-fixtures :each)
 (when config.shuffle?
   (shuffle-tests))
 (run-tests)

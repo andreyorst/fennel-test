@@ -139,8 +139,8 @@ the same as `assert-is'."
          (,name))))
 
 (fn testing
-  [description ...]
-  "Print test `description' and run it.
+  [_description ...]
+  "Simply wraps code with a `description'.
 
 # Example
 ``` fennel
@@ -150,8 +150,17 @@ the same as `assert-is'."
 ```
 "
   `(do
-     (io.stdout:write "testing: " ,description "\n")
      ,...))
+
+(fn use-fixtures [once-each ...]
+  (assert-compile (or (= once-each :once) (= once-each :each))
+                  "Expected :once or :each as first argument"
+                  once-each)
+  `(let [(ns# test-ns#) ...]
+     (each [_ fixture ,[...]]
+       (tset test-ns# ,once-each ns#
+             (+ 1 (length (. test-ns# ns#)))
+             fixture))))
 
 {: deftest
  : testing

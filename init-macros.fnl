@@ -139,7 +139,7 @@ the same as `assert-is'."
          (,name))))
 
 (fn testing
-  [_description ...]
+  [description ...]
   "Simply wraps code with a `description'.
 
 # Example
@@ -149,6 +149,9 @@ the same as `assert-is'."
   )
 ```
 "
+  (assert-compile (= :string (type description))
+                  "description must be a string"
+                  description)
   `(do
      ,...))
 
@@ -156,15 +159,19 @@ the same as `assert-is'."
   (assert-compile (or (= once-each :once) (= once-each :each))
                   "Expected :once or :each as first argument"
                   once-each)
-  `(let [(ns# test-ns#) ...]
-     (each [_ fixture ,[...]]
-       (tset test-ns# ,once-each ns#
-             (+ 1 (length (. test-ns# ns#)))
-             fixture))))
+  `(let [(ns# _# fixtures#) ...
+         once-each# ,once-each]
+     (when (not (. fixtures# once-each# ns#))
+       (tset fixtures# once-each# ns# []))
+     (each [_# fixture# (ipairs ,[...])]
+       (tset fixtures# once-each# ns#
+             (+ 1 (length (. fixtures# once-each# ns#)))
+             fixture#))))
 
 {: deftest
  : testing
  : assert-eq
  : assert-ne
  : assert-is
- : assert-not}
+ : assert-not
+ : use-fixtures}

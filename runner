@@ -3,10 +3,26 @@
 
 (local fennel (require :fennel))
 (local config {:seed (tonumber (or (os.getenv "FENNEL_TEST_SEED") (os.time)))
-               :runner :dots
+               :reporter :dots
                :shuffle? true})
-(local tests {:once {} :each {}})
+(local tests [])
+(local fixtures {:once {} :each {}})
 (local errors [])
+
+(local dots
+  {:ns-start (fn [] (io.stdout:write "("))
+   :ns-report (fn [] (io.stdout:write ")"))
+   :test-start (fn [] nil)
+   :test-report (fn [ok? test-name msg]
+                  (io.stdout:write (if ok? "." "F")))
+   :stats-report (fn [] (io.stdout:write "\n"))})
+
+(local namespaces
+  {:ns-start (fn [ns] (io.stdout:write ns ": "))
+   :ns-report (fn [ns ok?] (io.stdout:write (if ok? "PASS" "FAIL")))
+   :test-start (fn [] nil)
+   :test-report (fn [] nil)
+   :stats-report (fn [] nil)})
 
 (fn file-exists? [file]
   (let [fh (io.open file)]
@@ -21,6 +37,23 @@
       (false msg) (do
                     (io.stderr:write msg "\n")
                     (os.exit 1))))
+  (if (= config.reporter :dots)
+      (set config.reporter dots)
+      (= config.reporter :namespaces)
+      (set config.reporter namespaces)
+      (and (= :table (type config.reporter))
+           (= :function config.reporter.ns-start)
+           (= :function config.reporter.ns-report)
+           (= :function config.reporter.test-start)
+           (= :function config.reporter.test-report)
+           (= :function config.reporter.test-start))
+      nil
+      (not= nil config.reporter)
+      (do (io.stderr:write
+           "Warning: unknown or malformed reporter: "
+           (fennel.view config.reporter)
+           "\n Using default: dots\n")
+          (set config.reporter dots)))
   config)
 
 (fn module-from-file [file]
@@ -52,7 +85,7 @@
             module-tests []]
         (set-forcibly! _G (deepcopy _G))
         (table.insert tests [module-name module-tests])
-        (fennel.dofile file {:env _G} module-name module-tests)))
+        (fennel.dofile file {:env _G} module-name module-tests fixtures)))
     (set-forcibly! _G g)))
 
 (fn default-fixture [f]
@@ -65,10 +98,8 @@
   (accumulate [f default-fixture _ fixture (ipairs fixtures)]
     (compose-fixtures f fixture)))
 
-(local fixtures {:once {} :each {}})
-
 (fn setup-fixtures [once-each]
-  (each [ns fs (pairs (. tests once-each))]
+  (each [ns fs (pairs (. fixtures once-each))]
     (tset fixtures once-each ns (join-fixtures fs))))
 
 (macro with-no-output [expr]
@@ -84,39 +115,26 @@
        (tset stdout-mt# :write write#)
        (table.unpack res# 1 res#.n))))
 
-(fn dots [tests errors]
-  (each [_ [ns tests] (ipairs tests)]
-    (io.stdout:write "(")
-    (each [_ [test-name test-fn] (ipairs tests)]
-      (match (with-no-output (pcall test-fn))
-        (false msg) (do (io.stdout:write "F")
-                        (table.insert errors [ns test-name msg]))
-        _ (io.stdout:write "."))
-      (io.stdout:flush))
-    (io.stdout:write ")"))
-  (io.stdout:write "\n"))
-
-(fn namespaces [tests errors]
-  (each [_ [ns tests] (ipairs tests)]
-    (io.stdout:write ns ": ")
-    (var ok? true)
-    (if (> (length tests) 0)
-        (do (each [_ [test-name test-fn] (ipairs tests)]
-              (match (with-no-output (pcall test-fn))
-                (false msg) (do (set ok? false)
-                                (table.insert errors [ns test-name msg]))))
-            (if ok?
-                (io.stdout:write "PASS\n")
-                (io.stdout:write "FAIL\n")))
-        (io.stderr:write ns ": no tests\n"))))
+(fn run-ns-tests [ns tests]
+  (config.reporter.ns-start ns)
+  (var ok? true)
+  (let [oncef (or (. fixtures.once ns) default-fixture)]
+    (oncef
+     (fn []
+       (let [eachf (or (. fixtures.each ns) default-fixture)]
+         (each [_ [test-name test-fn] (ipairs tests)]
+           (config.reporter.test-start ns test-name)
+           (match (with-no-output (pcall eachf test-fn))
+             (false msg) (do (set ok? false)
+                             (config.reporter.test-report false ns test-name msg)
+                             (table.insert errors [ns test-name msg]))
+             _ (config.reporter.test-report true ns test-name)))))))
+  (config.reporter.ns-report ns ok?))
 
 (fn run-tests []
-  (match config.runner
-    :dots (dots tests errors)
-    :namespaces (namespaces tests errors)
-    (where runner (= :function (type runner))) (runner tests errors)
-    _ (do (io.stderr "Warning: unknown runner '" (tostring _) "' using default: 'dots'\n")
-          (dots tests errors))))
+  (each [_ [ns tests] (ipairs tests)]
+    (run-ns-tests ns tests))
+  (config.reporter.stats-report))
 
 (fn print-errors []
   (each [_ [ns test-name message] (ipairs errors)]

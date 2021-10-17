@@ -1,3 +1,6 @@
+#!/bin/env fennel
+;; -*- mode: fennel -*-
+
 (local fennel (require :fennel))
 (local config {:seed (tonumber (or (os.getenv "FENNEL_TEST_SEED") (os.time)))
                :runner :dots
@@ -104,7 +107,6 @@
 (fn print-errors []
   (each [_ [ns test-name message] (ipairs errors)]
     (io.stderr:write "Error in " ns " in test " test-name ":\n" message "\n")))
-
 
 (fn shuffle-table [t]
   (for [i (length t) 2 -1]

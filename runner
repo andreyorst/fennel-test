@@ -8,12 +8,13 @@
 (local tests [])
 (local errors [])
 
-(fn file-exists [file]
+(fn file-exists? [file]
   (let [fh (io.open file)]
-    (if fh (do (fh:close) true) false)))
+    (when fh (fh:close))
+    (not= fh nil)))
 
 (fn setup-runner []
-  (when (file-exists ".fennel-test")
+  (when (file-exists? ".fennel-test")
     (match (pcall fennel.dofile :.fennel-test)
       (true rc) (each [k v (pairs rc)]
                   (tset config k v))
@@ -45,19 +46,16 @@
    x {}))
 
 (fn load-tests []
-  (let [env _ENV
-        g _G]
+  (let [g _G]
     (each [_ file (ipairs arg)]
       (let [module-name (module-from-file file)
             module-tests []]
-        (set-forcibly! _ENV (deepcopy env))
         (set-forcibly! _G (deepcopy _G))
         (table.insert tests [module-name module-tests])
         (fennel.dofile file {:env _G} module-name module-tests)))
-    (set-forcibly! _ENV env)
     (set-forcibly! _G g)))
 
-(macro with-no-out [expr]
+(macro with-no-output [expr]
   "Suppress output to stderr."
   `(let [stdout-mt# (. (getmetatable io.stdout) :__index)
          write# stdout-mt#.write
@@ -70,11 +68,11 @@
        (tset stdout-mt# :write write#)
        (table.unpack res# 1 res#.n))))
 
-(fn dots []
+(fn dots [tests errors]
   (each [_ [ns tests] (ipairs tests)]
     (io.stdout:write "(")
     (each [_ [test-name test-fn] (ipairs tests)]
-      (match (with-no-out (pcall test-fn))
+      (match (with-no-output (pcall test-fn))
         (false msg) (do (io.stdout:write "F")
                         (table.insert errors [ns test-name msg]))
         _ (io.stdout:write "."))
@@ -82,13 +80,13 @@
     (io.stdout:write ")"))
   (io.stdout:write "\n"))
 
-(fn namespaces []
+(fn namespaces [tests errors]
   (each [_ [ns tests] (ipairs tests)]
     (io.stdout:write ns ": ")
     (var ok? true)
     (if (> (length tests) 0)
         (do (each [_ [test-name test-fn] (ipairs tests)]
-              (match (with-no-out (pcall test-fn))
+              (match (with-no-output (pcall test-fn))
                 (false msg) (do (set ok? false)
                                 (table.insert errors [ns test-name msg]))))
             (if ok?
@@ -98,11 +96,11 @@
 
 (fn run-tests []
   (match config.runner
-    :dots (dots)
-    :namespaces (namespaces)
+    :dots (dots tests errors)
+    :namespaces (namespaces tests errors)
     (where runner (= :function (type runner))) (runner tests errors)
     _ (do (io.stderr "Warning: unknown runner '" (tostring _) "' using default: 'dots'\n")
-          (dots))))
+          (dots tests errors))))
 
 (fn print-errors []
   (each [_ [ns test-name message] (ipairs errors)]

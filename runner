@@ -9,20 +9,24 @@
 (local fixtures {:once {} :each {}})
 (local errors [])
 
+;;; Reporters
+
 (local dots
-  {:ns-start (fn [] (io.stdout:write "("))
-   :ns-report (fn [] (io.stdout:write ")"))
-   :test-start (fn [] nil)
+  {:ns-start #(io.stdout:write "(")
+   :ns-report #(io.stdout:write ")")
+   :test-start #nil
    :test-report (fn [ok? test-name msg]
                   (io.stdout:write (if ok? "." "F")))
-   :stats-report (fn [] (io.stdout:write "\n"))})
+   :stats-report #(io.stdout:write "\n")})
 
 (local namespaces
   {:ns-start (fn [ns] (io.stdout:write ns ": "))
    :ns-report (fn [ns ok?] (io.stdout:write (if ok? "PASS" "FAIL") "\n"))
-   :test-start (fn [] nil)
-   :test-report (fn [] nil)
-   :stats-report (fn [] nil)})
+   :test-start #nil
+   :test-report #nil
+   :stats-report #nil})
+
+;;; Configuration
 
 (fn file-exists? [file]
   (let [fh (io.open file)]
@@ -56,6 +60,8 @@
           (set config.reporter dots)))
   config)
 
+;;; Utils
+
 (fn module-from-file [file]
   (let [sep (package.config:sub 1 1)
         module (-> file
@@ -78,6 +84,21 @@
        _ x))
    x {}))
 
+(macro with-no-output [expr]
+  "Suppress output to stdout and stderr via the `write` method."
+  `(let [stdout-mt# (. (getmetatable io.stdout) :__index)
+         write# stdout-mt#.write
+         pack# #(doto [$...] (tset :n (select "#" $...)))]
+     (tset stdout-mt# :write (fn [fd# ...]
+                               (when (and (not= fd# io.stdout)
+                                          (not= fd# io.stderr))
+                                 (write# fd# ...))))
+     (let [res# (pack# ,expr)]
+       (tset stdout-mt# :write write#)
+       (table.unpack res# 1 res#.n))))
+
+;;; Test loading
+
 (fn load-tests []
   (let [g _G]
     (each [_ file (ipairs arg)]
@@ -87,6 +108,20 @@
         (table.insert tests [module-name module-tests])
         (fennel.dofile file {:env _G} module-name module-tests fixtures)))
     (set-forcibly! _G g)))
+
+(fn shuffle-table [t]
+  (for [i (length t) 2 -1]
+    (let [j (math.random i)
+          ti (. t i)]
+      (tset t i (. t j))
+      (tset t j ti))))
+
+(fn shuffle-tests []
+  (each [_ [_ test-ns] (ipairs tests)]
+    (shuffle-table test-ns))
+  (shuffle-table tests))
+
+;;; Fixtures
 
 (fn default-fixture [f]
   (f))
@@ -102,58 +137,45 @@
   (each [ns fs (pairs (. fixtures once-each))]
     (tset fixtures once-each ns (join-fixtures fs))))
 
-(macro with-no-output [expr]
-  "Suppress output to stderr."
-  `(let [stdout-mt# (. (getmetatable io.stdout) :__index)
-         write# stdout-mt#.write
-         pack# #(doto [$...] (tset :n (select "#" $...)))]
-     (tset stdout-mt# :write (fn [fd# ...]
-                               (when (and (not= fd# io.stdout)
-                                          (not= fd# io.stderr))
-                                 (write# fd# ...))))
-     (let [res# (pack# ,expr)]
-       (tset stdout-mt# :write write#)
-       (table.unpack res# 1 res#.n))))
+;;; Runner
 
 (fn run-ns-tests [ns tests]
-  (config.reporter.ns-start ns)
-  (var ok? true)
-  (let [oncef (or (. fixtures.once ns) default-fixture)]
+  (let [{: reporter} config
+        oncef (or (. fixtures.once ns) default-fixture)]
+    (var ok? true)
+    (reporter.ns-start ns)
     (oncef
      (fn []
        (let [eachf (or (. fixtures.each ns) default-fixture)]
          (each [_ [test-name test-fn] (ipairs tests)]
-           (config.reporter.test-start ns test-name)
+           (reporter.test-start ns test-name)
            (match (with-no-output (pcall eachf test-fn))
              (false msg) (do (set ok? false)
-                             (config.reporter.test-report false ns test-name msg)
+                             (reporter.test-report false ns test-name msg)
                              (table.insert errors [ns test-name msg]))
-             _ (config.reporter.test-report true ns test-name)))))))
-  (config.reporter.ns-report ns ok?))
+             _ (reporter.test-report true ns test-name))))))
+    (reporter.ns-report ns ok?)))
 
 (fn run-tests []
   (each [_ [ns tests] (ipairs tests)]
     (run-ns-tests ns tests))
   (config.reporter.stats-report))
 
+;;; Stats
+
 (fn print-errors []
   (each [_ [ns test-name message] (ipairs errors)]
-    (io.stderr:write "Error in " ns " in test " test-name ":\n" message "\n")))
-
-(fn shuffle-table [t]
-  (for [i (length t) 2 -1]
-    (let [j (math.random i)
-          ti (. t i)]
-      (tset t i (. t j))
-      (tset t j ti))))
-
-(fn shuffle-tests []
-  (each [_ [_ test-ns] (ipairs tests)]
-    (shuffle-table test-ns))
-  (shuffle-table tests))
+    (io.stderr:write
+     "Error in '" ns
+     "' in test '" test-name "':\n"
+     message "\n")))
 
 (fn print-stats []
-  (io.stdout:write "Test run at " (os.date) ", seed: " config.seed "\n"))
+  (io.stdout:write
+   "Test run at " (os.date)
+   ", seed: " config.seed "\n"))
+
+;;; Script
 
 (setup-runner)
 (print-stats)

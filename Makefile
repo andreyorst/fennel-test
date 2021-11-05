@@ -8,7 +8,7 @@ FNLDOCS = $(FNLMACROS) $(FNLSOURCES)
 LUAEXECUTABLES ?= lua luajit
 FENNELDOC := $(shell command -v fenneldoc)
 
-.PHONY: help doc test
+.PHONY: help doc test testall $(LUAEXECUTABLES)
 
 test: $(FNLTESTS)
 	@echo "Testing on" $$($(LUA) -v) >&2
@@ -23,6 +23,10 @@ test: $(FNLTESTS)
 # 	@echo "https://gitlab.com/andreyorst/fenneldoc" >&2
 # 	@echo "" >&2
 # endif
+
+testall: $(LUAEXECUTABLES)
+	@$(foreach lua,$?,LUA=$(lua) make test || exit;)
+
 
 doc:
 ifdef FENNELDOC
